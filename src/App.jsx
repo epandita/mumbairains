@@ -607,18 +607,21 @@ export default function App() {
           <div style={{ background:"linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))", border:"1px solid rgba(239,68,68,0.25)", borderRadius:16, padding:20, marginBottom:16, position:"relative", overflow:"hidden" }}>
             <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,transparent,#ef4444,transparent)", animation:"scan 3s ease-in-out infinite" }}/>
             <div style={{ fontSize:10, letterSpacing:2, textTransform:"uppercase", color:"#f87171", marginBottom:8, fontFamily:"'Space Mono',monospace" }}>⚠ Active Weather Alert</div>
-            <div style={{ fontSize:26, fontWeight:700, lineHeight:1.1, marginBottom:6 }}>{weather?.rain > 5 ? "Heavy Rain" : weather?.rain > 0 ? "Light Rain" : "Mostly Clear"}<br/>
-<span style={{ color: weather?.rain > 5 ? "#ef4444" : weather?.rain > 0 ? "#f59e0b" : "#10b981" }}>
-  Mumbai Today
-</span>
-            <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.5 }}>{weather
-  ? weather.rain > 5
-    ? `IMD alert active. ${severeCount} areas reporting waterlogging. Avoid low-lying roads.`
-    : weather.rain > 0
-    ? `Light rain detected. ${severeCount} areas on watch. Check before stepping out.`
-    : `No active rain right now. ${severeCount} areas still recovering. Roads mostly clear.`
-  : `Loading weather data…`
-}</div>
+            <div style={{ fontSize:26, fontWeight:700, lineHeight:1.1, marginBottom:6 }}>
+              {weather ? (weather.rain > 5 ? "Heavy Rain" : weather.rain > 0 ? "Light Rain" : "Mostly Clear") : "Loading…"}
+              <br/>
+              <span style={{ color: weather && weather.rain > 5 ? "#ef4444" : weather && weather.rain > 0 ? "#f59e0b" : "#10b981" }}>Mumbai Today</span>
+            </div>
+            <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.5 }}>
+              {weather
+                ? weather.rain > 5
+                  ? `IMD alert active. ${severeCount} areas reporting waterlogging. Avoid low-lying roads.`
+                  : weather.rain > 0
+                  ? `Light rain detected. ${severeCount} areas on watch. Check before stepping out.`
+                  : `No active rain right now. ${severeCount} areas still recovering. Roads mostly clear.`
+                : "Loading weather data…"
+              }
+            </div>
             <div style={{ display:"flex", gap:8, marginTop:14, alignItems:"center" }}>
               <div style={{ flex:1, height:4, borderRadius:2, background:"#1e2f4a", overflow:"hidden" }}>
                 <div style={{ height:"100%", borderRadius:2, background:"linear-gradient(90deg,#f59e0b,#ef4444)", width:`${weather?.rain?Math.min(100,weather.rain*10):65}%`, transition:"width 1s ease" }}/>
