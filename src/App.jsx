@@ -540,9 +540,19 @@ export default function App() {
   const [lastUpdated, setLastUpdated] = useState("");
   const [username] = useState(()=>localStorage.getItem("mr_username")||(()=>{const n=randomName();localStorage.setItem("mr_username",n);return n;})());
 
+  const rainFactor = weather
+    ? weather.rain > 20 ? 0.85
+    : weather.rain > 10 ? 0.6
+    : weather.rain > 5  ? 0.35
+    : weather.rain > 1  ? 0.15
+    : 0
+    : 0;
+
   const areaData = AREAS.map(a => {
     const ar = reports.filter(r=>r.area_name===a.name);
-    const score = Math.min(100, Math.round(a.riskBase + ar.reduce((acc,r)=>acc+SEV_SCORE[r.severity]*3,0)));
+    const userScore = ar.reduce((acc,r)=>acc+SEV_SCORE[r.severity]*15,0);
+    const rainScore = Math.round(a.riskBase * rainFactor);
+    const score = Math.min(100, rainScore + userScore);
     return { ...a, reports:ar.length, score, status:statusFromScore(score) };
   }).sort((a,b)=>b.score-a.score);
 
