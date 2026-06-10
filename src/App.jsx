@@ -1,17 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// ── CONFIG — replace with your keys ──────────────────────────────────────────
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL      || "YOUR_SUPABASE_URL";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "YOUR_SUPABASE_ANON_KEY";
 const OWM_API_KEY       = import.meta.env.VITE_OWM_API_KEY       || "YOUR_OWM_API_KEY";
-// ─────────────────────────────────────────────────────────────────────────────
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ── ALL MUMBAI AREAS (BMC flood-prone zones + user requested) ─────────────────
 const AREAS = [
-  // Chronic severe zones (BMC listed)
   { name: "Andheri Subway",        zone: "Andheri West",    riskBase: 92 },
   { name: "Hindmata Junction",     zone: "Dadar",           riskBase: 90 },
   { name: "Milan Subway",          zone: "Vile Parle",      riskBase: 88 },
@@ -42,44 +38,103 @@ const AREAS = [
   { name: "Goregaon East",         zone: "Goregaon",        riskBase: 40 },
   { name: "Mulund Check Naka",     zone: "Mulund",          riskBase: 42 },
   { name: "Thane Station Area",    zone: "Thane",           riskBase: 55 },
-  { name: "Ghansoli",    zone: "NaviMumbai",    riskBase: 20 },
-  { name: "Vashi",    zone: "NaviMumbai",    riskBase: 20 },
-  { name: "Ulwe",    zone: "Uran",    riskBase: 10 },
-  { name: "Kharghar",    zone: "Panvel",    riskBase: 10 },
-  ];
-
-// ── TRAIN LINES ───────────────────────────────────────────────────────────────
-const TRAIN_LINES = [
-  { id: "western",   label: "Western Line",  short: "WR",  route: "Churchgate → Virar/Dahanu",    color: "#3b82f6" },
-  { id: "central",   label: "Central Line",  short: "CR",  route: "CSMT → Kalyan/Kasara/Khopoli", color: "#f59e0b" },
-  { id: "harbour",   label: "Harbour Line",  short: "HR",  route: "CSMT → Panvel via Vashi",      color: "#10b981" },
 ];
 
-// ── TRAFFIC ROUTES ─────────────────────────────────────────────────────────────
+const TRAIN_LINES = [
+  { id: "western", label: "Western Line", short: "WR", route: "Churchgate → Virar/Dahanu",    color: "#3b82f6" },
+  { id: "central", label: "Central Line", short: "CR", route: "CSMT → Kalyan/Kasara/Khopoli", color: "#f59e0b" },
+  { id: "harbour", label: "Harbour Line", short: "HR", route: "CSMT → Panvel via Vashi",      color: "#10b981" },
+];
+
 const TRAFFIC_ROUTES = [
-  { id: "ew_highway",    label: "Eastern Express Hwy",   short: "EEH" },
-  { id: "ww_highway",    label: "Western Express Hwy",   short: "WEH" },
-  { id: "sion_panvel",   label: "Sion–Panvel Hwy",       short: "SPH" },
-  { id: "lbs_marg",      label: "LBS Marg",              short: "LBS" },
-  { id: "jog_ali",       label: "Jogeshwari–Vikhroli Lnk", short: "JVL" },
-  { id: "sv_road",       label: "S.V. Road",             short: "SVR" },
+  { id: "ew_highway",  label: "Eastern Express Hwy",     short: "EEH" },
+  { id: "ww_highway",  label: "Western Express Hwy",     short: "WEH" },
+  { id: "sion_panvel", label: "Sion–Panvel Hwy",         short: "SPH" },
+  { id: "lbs_marg",    label: "LBS Marg",                short: "LBS" },
+  { id: "jog_ali",     label: "Jogeshwari–Vikhroli Lnk", short: "JVL" },
+  { id: "sv_road",     label: "S.V. Road",               short: "SVR" },
 ];
 
 const SEV_SCORE = { moderate: 1, high: 2, severe: 3 };
 const SEV_LABEL = { severe: "🚨 Severe", high: "⚠️ High", moderate: "🔵 Moderate", safe: "✅ Clear" };
 const SEV_COLOR = { severe: "#ef4444", high: "#f59e0b", moderate: "#3b82f6", safe: "#10b981" };
+
 const TRAIN_STATUS_OPTS = [
-  { key: "normal",   label: "🟢 Running Normal", color: "#10b981" },
-  { key: "delayed",  label: "🟡 Delayed 15-30 min", color: "#f59e0b" },
-  { key: "halted",   label: "🔴 Halted / Stopped", color: "#ef4444" },
-  { key: "slow",     label: "🟠 Slow / Crowded",   color: "#f97316" },
+  { key: "normal",  label: "🟢 Running Normal",    color: "#10b981" },
+  { key: "delayed", label: "🟡 Delayed 15-30 min", color: "#f59e0b" },
+  { key: "halted",  label: "🔴 Halted / Stopped",  color: "#ef4444" },
+  { key: "slow",    label: "🟠 Slow / Crowded",    color: "#f97316" },
 ];
+
 const TRAFFIC_OPTS = [
-  { key: "clear",   label: "🟢 Moving freely",    color: "#10b981" },
-  { key: "slow",    label: "🟡 Slow moving",       color: "#f59e0b" },
-  { key: "heavy",   label: "🔴 Heavy traffic",     color: "#ef4444" },
-  { key: "blocked", label: "⛔ Road blocked",      color: "#dc2626" },
+  { key: "clear",   label: "🟢 Moving freely",  color: "#10b981" },
+  { key: "slow",    label: "🟡 Slow moving",     color: "#f59e0b" },
+  { key: "heavy",   label: "🔴 Heavy traffic",   color: "#ef4444" },
+  { key: "blocked", label: "⛔ Road blocked",    color: "#dc2626" },
 ];
+
+// ── Alert level computation ───────────────────────────────────────────────────
+function computeAlertLevel(weather, areaData, trainReports, trafficReports) {
+  const rain = weather?.rain || 0;
+  const severeAreas = areaData.filter(a => a.status === "severe").length;
+  const highAreas   = areaData.filter(a => a.status === "high").length;
+  const trainHalted = trainReports.filter(r => r.status === "halted").length;
+  const trainDelayed= trainReports.filter(r => r.status === "delayed" || r.status === "slow").length;
+  const roadBlocked = trafficReports.filter(r => r.status === "blocked" || r.status === "heavy").length;
+
+  let score = 0;
+  score += rain > 20 ? 40 : rain > 10 ? 25 : rain > 5 ? 15 : rain > 1 ? 5 : 0;
+  score += severeAreas * 8;
+  score += highAreas * 4;
+  score += trainHalted * 10;
+  score += trainDelayed * 4;
+  score += roadBlocked * 5;
+
+  if (score >= 60) return "red";
+  if (score >= 30) return "orange";
+  if (score >= 10) return "yellow";
+  return "green";
+}
+
+function getDecision(alertLevel, weather, userArea) {
+  const rain = weather?.rain || 0;
+  const area = userArea ? `Your area (${userArea})` : "Mumbai";
+  const decisions = {
+    red: {
+      verdict: "❌ Do NOT go out now",
+      advice: `${area} is experiencing severe flooding conditions. Wait at least 2 hours.`,
+      travelRisk: "VERY HIGH", floodRisk: "SEVERE", trainRisk: "LIKELY HALTED", commuteRisk: "AVOID",
+      travelColor: "#ef4444", floodColor: "#ef4444", trainColor: "#ef4444", commuteColor: "#ef4444",
+      bg: "linear-gradient(135deg,rgba(239,68,68,0.15),rgba(220,38,38,0.08))",
+      border: "rgba(239,68,68,0.4)", labelColor: "#ef4444", label: "🔴 RED ALERT",
+    },
+    orange: {
+      verdict: "⚠️ Go out only if urgent",
+      advice: `${area} has active waterlogging. Use elevated routes, avoid subways and underpasses.`,
+      travelRisk: "HIGH", floodRisk: "HIGH", trainRisk: "LIKELY DELAYED", commuteRisk: "RISKY",
+      travelColor: "#f97316", floodColor: "#f59e0b", trainColor: "#f59e0b", commuteColor: "#f97316",
+      bg: "linear-gradient(135deg,rgba(249,115,22,0.15),rgba(245,158,11,0.08))",
+      border: "rgba(249,115,22,0.4)", labelColor: "#f97316", label: "🟠 ORANGE ALERT",
+    },
+    yellow: {
+      verdict: "🟡 Proceed with caution",
+      advice: `Light rain in ${area}. Check your specific route before leaving. Carry an umbrella.`,
+      travelRisk: "MODERATE", floodRisk: "MODERATE", trainRisk: "MINOR DELAYS", commuteRisk: "CAUTION",
+      travelColor: "#f59e0b", floodColor: "#f59e0b", trainColor: "#f59e0b", commuteColor: "#f59e0b",
+      bg: "linear-gradient(135deg,rgba(245,158,11,0.12),rgba(234,179,8,0.06))",
+      border: "rgba(245,158,11,0.35)", labelColor: "#f59e0b", label: "🟡 YELLOW ALERT",
+    },
+    green: {
+      verdict: "✅ Safe to go out",
+      advice: `${area} is clear right now. No active flooding reported. Normal commute expected.`,
+      travelRisk: "LOW", floodRisk: "LOW", trainRisk: "RUNNING NORMAL", commuteRisk: "NORMAL",
+      travelColor: "#10b981", floodColor: "#10b981", trainColor: "#10b981", commuteColor: "#10b981",
+      bg: "linear-gradient(135deg,rgba(16,185,129,0.1),rgba(5,150,105,0.05))",
+      border: "rgba(16,185,129,0.3)", labelColor: "#10b981", label: "🟢 GREEN — ALL CLEAR",
+    },
+  };
+  return decisions[alertLevel];
+}
 
 function statusFromScore(s) {
   if (s >= 80) return "severe";
@@ -87,12 +142,14 @@ function statusFromScore(s) {
   if (s >= 30) return "moderate";
   return "safe";
 }
+
 function timeAgo(ts) {
   const d = Math.floor((Date.now() - new Date(ts)) / 1000);
   if (d < 60) return `${d}s ago`;
   if (d < 3600) return `${Math.floor(d/60)}m ago`;
   return `${Math.floor(d/3600)}h ago`;
 }
+
 function randomName() {
   const a = ["Andheri","Dadar","Bandra","Kurla","Powai","Worli","Sion","Malad","Borivali","Thane"];
   const b = ["Local","Bhai","Dost","Mumbai","Wala","Hero","Kaun","Yaar"];
@@ -100,27 +157,110 @@ function randomName() {
 }
 
 // ── Rain Canvas ───────────────────────────────────────────────────────────────
-function RainCanvas() {
+function RainCanvas({ intensity = 1 }) {
   const ref = useRef();
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas.getContext("2d");
     let drops = [], raf;
+    const count = Math.round(30 + 70 * intensity);
     function resize() {
       canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-      drops = Array.from({ length: 55 }, () => ({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, speed: 4+Math.random()*6, len: 15+Math.random()*25, opacity: 0.04+Math.random()*0.08 }));
+      drops = Array.from({ length: count }, () => ({
+        x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+        speed: 4+Math.random()*6*intensity, len: 15+Math.random()*25,
+        opacity: 0.03+Math.random()*0.1*intensity,
+      }));
     }
     resize();
     window.addEventListener("resize", resize);
     function draw() {
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      drops.forEach(d => { ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-1,d.y+d.len); ctx.strokeStyle=`rgba(56,189,248,${d.opacity})`; ctx.lineWidth=1; ctx.stroke(); d.y+=d.speed; if(d.y>canvas.height){d.y=-d.len;d.x=Math.random()*canvas.width;} });
+      drops.forEach(d => {
+        ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-1,d.y+d.len);
+        ctx.strokeStyle=`rgba(56,189,248,${d.opacity})`; ctx.lineWidth=1; ctx.stroke();
+        d.y+=d.speed; if(d.y>canvas.height){d.y=-d.len;d.x=Math.random()*canvas.width;}
+      });
       raf = requestAnimationFrame(draw);
     }
     draw();
     return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
-  }, []);
+  }, [intensity]);
   return <canvas ref={ref} style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none" }} />;
+}
+
+// ── Decision Hero Card ────────────────────────────────────────────────────────
+function DecisionHero({ alertLevel, weather, userArea, areaData }) {
+  const d = getDecision(alertLevel, weather, userArea);
+  const pulse = alertLevel === "red" || alertLevel === "orange";
+
+  return (
+    <div style={{ background:d.bg, border:`1px solid ${d.border}`, borderRadius:20, padding:20, marginBottom:16, position:"relative", overflow:"hidden" }}>
+      {pulse && <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:`linear-gradient(90deg,transparent,${d.labelColor},transparent)`, animation:"scan 2s ease-in-out infinite" }}/>}
+
+      {/* Alert label + timestamp */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:d.labelColor, fontFamily:"'Space Mono',monospace", letterSpacing:1 }}>{d.label}</div>
+        <div style={{ fontSize:10, color:"#4a5568", fontFamily:"'Space Mono',monospace" }}>{new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})} IST</div>
+      </div>
+
+      {/* Main verdict */}
+      <div style={{ fontSize:24, fontWeight:700, marginBottom:6, lineHeight:1.2 }}>{d.verdict}</div>
+      <div style={{ fontSize:13, color:"#9ca3af", lineHeight:1.5, marginBottom:16 }}>{d.advice}</div>
+
+      {/* Impact layer grid */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+        {[
+          { icon:"🚦", label:"Travel Risk",   value:d.travelRisk,   color:d.travelColor },
+          { icon:"🌊", label:"Flood Risk",    value:d.floodRisk,    color:d.floodColor  },
+          { icon:"🚆", label:"Train Status",  value:d.trainRisk,    color:d.trainColor  },
+          { icon:"🛵", label:"Commute",       value:d.commuteRisk,  color:d.commuteColor},
+        ].map((item,i) => (
+          <div key={i} style={{ background:"rgba(0,0,0,0.25)", borderRadius:12, padding:"10px 12px" }}>
+            <div style={{ fontSize:11, color:"#6b7f99", marginBottom:4 }}>{item.icon} {item.label}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:item.color, fontFamily:"'Space Mono',monospace" }}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Rain intensity bar */}
+      {weather && (
+        <div style={{ marginTop:14 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+            <div style={{ fontSize:10, color:"#6b7f99" }}>Rain intensity</div>
+            <div style={{ fontSize:10, color:"#38bdf8", fontFamily:"'Space Mono',monospace" }}>{weather.rain} mm/h · {weather.desc}</div>
+          </div>
+          <div style={{ height:4, borderRadius:2, background:"#1e2f4a", overflow:"hidden" }}>
+            <div style={{ height:"100%", borderRadius:2, background:`linear-gradient(90deg,#f59e0b,${d.labelColor})`, width:`${Math.min(100,weather.rain*5+5)}%`, transition:"width 1.5s ease" }}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Location Banner ───────────────────────────────────────────────────────────
+function LocationBanner({ userArea, onDetect, detecting }) {
+  return (
+    <div style={{ background:"rgba(56,189,248,0.06)", border:"1px solid rgba(56,189,248,0.15)", borderRadius:12, padding:"12px 14px", marginBottom:12, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+      <div>
+        <div style={{ fontSize:12, color:"#38bdf8", fontWeight:600 }}>📍 {userArea || "Location not set"}</div>
+        <div style={{ fontSize:11, color:"#6b7f99", marginTop:2 }}>Used for personalised alerts</div>
+      </div>
+      <button onClick={onDetect} disabled={detecting} style={{ background:"rgba(56,189,248,0.15)", border:"1px solid rgba(56,189,248,0.3)", color:"#38bdf8", borderRadius:8, padding:"6px 12px", fontSize:11, fontWeight:600, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer" }}>
+        {detecting ? "Detecting…" : userArea ? "Update" : "Detect"}
+      </button>
+    </div>
+  );
+}
+
+// ── Section Label ─────────────────────────────────────────────────────────────
+function SectionLabel({ children }) {
+  return (
+    <div style={{ fontSize:10, letterSpacing:2, textTransform:"uppercase", color:"#6b7f99", margin:"20px 0 12px", fontFamily:"'Space Mono',monospace", display:"flex", alignItems:"center", gap:8 }}>
+      {children}<span style={{ flex:1, height:1, background:"#1e2f4a", display:"block" }}/>
+    </div>
+  );
 }
 
 // ── Weather Strip ─────────────────────────────────────────────────────────────
@@ -144,15 +284,6 @@ function WeatherStrip({ weather }) {
   );
 }
 
-// ── Section Label ─────────────────────────────────────────────────────────────
-function SectionLabel({ children }) {
-  return (
-    <div style={{ fontSize:10, letterSpacing:2, textTransform:"uppercase", color:"#6b7f99", margin:"20px 0 12px", fontFamily:"'Space Mono',monospace", display:"flex", alignItems:"center", gap:8 }}>
-      {children}<span style={{ flex:1, height:1, background:"#1e2f4a", display:"block" }}/>
-    </div>
-  );
-}
-
 // ── Area Card ─────────────────────────────────────────────────────────────────
 function AreaCard({ area, onClick }) {
   const c = SEV_COLOR[area.status];
@@ -160,11 +291,11 @@ function AreaCard({ area, onClick }) {
     <div onClick={onClick} style={{ background:"#0d1526", border:`1px solid ${c}55`, borderRadius:12, padding:"13px 15px", display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", position:"relative", overflow:"hidden", marginBottom:8 }}>
       <div style={{ flex:1 }}>
         <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{area.name}</div>
-        <div style={{ fontSize:12, color:"#6b7f99", display:"flex", gap:8 }}>
+        <div style={{ fontSize:12, color:"#6b7f99", display:"flex", gap:8, alignItems:"center" }}>
           <span>{area.zone}</span>
-          <span style={{ fontFamily:"'Space Mono',monospace", background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:20, padding:"2px 8px", color: area.reports>0?"#38bdf8":"#4a5568" }}>
-  {area.reports>0 ? `👥 ${area.reports}` : "👥 0"}
-</span>
+          <span style={{ background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:20, padding:"2px 8px", color:area.reports>0?"#38bdf8":"#4a5568", fontFamily:"'Space Mono',monospace", fontSize:11 }}>
+            👥 {area.reports}
+          </span>
         </div>
       </div>
       <div style={{ background:c+"22", color:c, border:`1px solid ${c}44`, borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:600, fontFamily:"'Space Mono',monospace", whiteSpace:"nowrap" }}>{SEV_LABEL[area.status]}</div>
@@ -200,7 +331,7 @@ function AreaModal({ area, reports, onClose }) {
   );
 }
 
-// ── Train Status Card ─────────────────────────────────────────────────────────
+// ── Train Card ────────────────────────────────────────────────────────────────
 function TrainCard({ line, status, reportCount, lastReport, onReport }) {
   const st = TRAIN_STATUS_OPTS.find(s=>s.key===status) || TRAIN_STATUS_OPTS[0];
   return (
@@ -214,12 +345,8 @@ function TrainCard({ line, status, reportCount, lastReport, onReport }) {
       </div>
       <div style={{ fontSize:12, color:"#6b7f99", marginBottom:10 }}>{line.route}</div>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:11, color:"#4a5568", fontFamily:"'Space Mono',monospace" }}>
-          {reportCount>0 ? `${reportCount} reports · ${lastReport}` : "No reports yet"}
-        </div>
-        <button onClick={()=>onReport(line)} style={{ background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.25)", color:"#38bdf8", borderRadius:8, padding:"5px 12px", fontSize:12, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", fontWeight:600 }}>
-          Report
-        </button>
+        <div style={{ fontSize:11, color:"#4a5568", fontFamily:"'Space Mono',monospace" }}>{reportCount>0?`${reportCount} reports · ${lastReport}`:"No reports yet"}</div>
+        <button onClick={()=>onReport(line)} style={{ background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.25)", color:"#38bdf8", borderRadius:8, padding:"5px 12px", fontSize:12, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer", fontWeight:600 }}>Report</button>
       </div>
       <div style={{ position:"absolute", bottom:0, left:0, height:2, right:0, background:st.color, opacity:0.4 }}/>
     </div>
@@ -247,7 +374,7 @@ function TrafficCard({ route, status, reportCount, lastReport, onReport }) {
   );
 }
 
-// ── Quick Report Modal (trains + traffic) ─────────────────────────────────────
+// ── Quick Report Modal ────────────────────────────────────────────────────────
 function QuickReportModal({ type, target, username, onClose, onSubmit }) {
   const [selected, setSelected] = useState(null);
   const [sending, setSending]   = useState(false);
@@ -256,21 +383,20 @@ function QuickReportModal({ type, target, username, onClose, onSubmit }) {
   async function submit() {
     if (!selected) return;
     setSending(true);
-    const table = type==="train" ? "train_reports" : "traffic_reports";
+    const table   = type==="train" ? "train_reports" : "traffic_reports";
     const payload = type==="train"
-      ? { line_id: target.id, line_label: target.label, status: selected, username }
-      : { route_id: target.id, route_label: target.label, status: selected, username };
+      ? { line_id:target.id, line_label:target.label, status:selected, username }
+      : { route_id:target.id, route_label:target.label, status:selected, username };
     await supabase.from(table).insert(payload);
     setSending(false);
-    onSubmit();
-    onClose();
+    onSubmit(); onClose();
   }
 
   return (
     <div onClick={e=>e.target===e.currentTarget&&onClose()} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.75)", backdropFilter:"blur(4px)", zIndex:300, display:"flex", alignItems:"flex-end", padding:16 }}>
       <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:20, padding:24, width:"100%" }}>
-        <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>Report {type==="train"?target.label:target.label}</div>
-        <div style={{ fontSize:13, color:"#6b7f99", marginBottom:16 }}>What's the current status?</div>
+        <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>Report {target.label}</div>
+        <div style={{ fontSize:13, color:"#6b7f99", marginBottom:16 }}>What is the current status?</div>
         <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
           {opts.map(o=>(
             <button key={o.key} onClick={()=>setSelected(o.key)} style={{ padding:"12px 16px", borderRadius:10, border:`1px solid ${selected===o.key?o.color:"#1e2f4a"}`, background:selected===o.key?o.color+"18":"#131f35", color:selected===o.key?o.color:"#6b7f99", fontFamily:"'Space Grotesk',sans-serif", fontSize:14, fontWeight:600, cursor:"pointer", textAlign:"left" }}>
@@ -287,11 +413,11 @@ function QuickReportModal({ type, target, username, onClose, onSubmit }) {
   );
 }
 
-// ── Trains & Traffic Tab ──────────────────────────────────────────────────────
+// ── Commute Tab ───────────────────────────────────────────────────────────────
 function CommuteTab({ username }) {
   const [trainReports,   setTrainReports]   = useState([]);
   const [trafficReports, setTrafficReports] = useState([]);
-  const [modal, setModal] = useState(null); // { type, target }
+  const [modal, setModal] = useState(null);
   const [toast, setToast] = useState("");
 
   const fetchAll = useCallback(async () => {
@@ -306,64 +432,44 @@ function CommuteTab({ username }) {
 
   useEffect(() => {
     fetchAll();
-    const ch1 = supabase.channel("train_r").on("postgres_changes",{event:"INSERT",schema:"public",table:"train_reports"},fetchAll).subscribe();
-    const ch2 = supabase.channel("traffic_r").on("postgres_changes",{event:"INSERT",schema:"public",table:"traffic_reports"},fetchAll).subscribe();
-    return () => { supabase.removeChannel(ch1); supabase.removeChannel(ch2); };
+    const c1 = supabase.channel("train_r").on("postgres_changes",{event:"INSERT",schema:"public",table:"train_reports"},fetchAll).subscribe();
+    const c2 = supabase.channel("traffic_r").on("postgres_changes",{event:"INSERT",schema:"public",table:"traffic_reports"},fetchAll).subscribe();
+    return () => { supabase.removeChannel(c1); supabase.removeChannel(c2); };
   }, [fetchAll]);
 
-  function getTrainStatus(lineId) {
-    const reports = trainReports.filter(r=>r.line_id===lineId);
-    if (reports.length===0) return "normal";
-    return reports[0].status;
-  }
-  function getTrafficStatus(routeId) {
-    const reports = trafficReports.filter(r=>r.route_id===routeId);
-    if (reports.length===0) return "clear";
-    return reports[0].status;
-  }
-  function getReportCount(arr, keyField, keyVal) {
-    return arr.filter(r=>r[keyField]===keyVal).length;
-  }
-  function getLastReport(arr, keyField, keyVal) {
-    const r = arr.find(r=>r[keyField]===keyVal);
-    return r ? timeAgo(r.created_at) : "";
-  }
+  const getTrainStatus  = id => trainReports.find(r=>r.line_id===id)?.status || "normal";
+  const getTrafficStatus= id => trafficReports.find(r=>r.route_id===id)?.status || "clear";
+  const getCount = (arr,k,v) => arr.filter(r=>r[k]===v).length;
+  const getLast  = (arr,k,v) => { const r=arr.find(r=>r[k]===v); return r?timeAgo(r.created_at):""; };
 
   return (
     <div style={{ paddingTop:8 }}>
       {toast && <div style={{ position:"fixed", bottom:90, left:"50%", transform:"translateX(-50%)", background:"#10b981", color:"#fff", padding:"12px 20px", borderRadius:12, fontSize:13, fontWeight:600, zIndex:999, whiteSpace:"nowrap" }}>{toast}</div>}
-
       <SectionLabel>🚆 Local Train Status</SectionLabel>
       <div style={{ background:"rgba(56,189,248,0.06)", border:"1px solid rgba(56,189,248,0.15)", borderRadius:10, padding:"10px 14px", marginBottom:12, fontSize:12, color:"#6b7f99", lineHeight:1.5 }}>
-        No official API available — status is crowdsourced by commuters like you. Tap <strong style={{ color:"#38bdf8" }}>Report</strong> to update your line.
+        Crowdsourced by commuters. Tap <strong style={{ color:"#38bdf8" }}>Report</strong> to update your line.
       </div>
-      {TRAIN_LINES.map(line => (
+      {TRAIN_LINES.map(line=>(
         <TrainCard key={line.id} line={line}
           status={getTrainStatus(line.id)}
-          reportCount={getReportCount(trainReports,"line_id",line.id)}
-          lastReport={getLastReport(trainReports,"line_id",line.id)}
+          reportCount={getCount(trainReports,"line_id",line.id)}
+          lastReport={getLast(trainReports,"line_id",line.id)}
           onReport={l=>setModal({type:"train",target:l})}
         />
       ))}
-
       <SectionLabel>🚗 Traffic Status</SectionLabel>
-      <div style={{ background:"rgba(56,189,248,0.06)", border:"1px solid rgba(56,189,248,0.15)", borderRadius:10, padding:"10px 14px", marginBottom:12, fontSize:12, color:"#6b7f99", lineHeight:1.5 }}>
-        Real-time traffic reports from Mumbaikars on the road. Tap <strong style={{ color:"#38bdf8" }}>Report</strong> to update a route.
-      </div>
-      {TRAFFIC_ROUTES.map(route => (
+      {TRAFFIC_ROUTES.map(route=>(
         <TrafficCard key={route.id} route={route}
           status={getTrafficStatus(route.id)}
-          reportCount={getReportCount(trafficReports,"route_id",route.id)}
-          lastReport={getLastReport(trafficReports,"route_id",route.id)}
+          reportCount={getCount(trafficReports,"route_id",route.id)}
+          lastReport={getLast(trafficReports,"route_id",route.id)}
           onReport={r=>setModal({type:"traffic",target:r})}
         />
       ))}
-
       {modal && (
-        <QuickReportModal
-          type={modal.type} target={modal.target} username={username}
-          onClose={() => setModal(null)}
-          onSubmit={() => { setToast("✅ Thanks! Status updated."); fetchAll(); setTimeout(()=>setToast(""),3000); }}
+        <QuickReportModal type={modal.type} target={modal.target} username={username}
+          onClose={()=>setModal(null)}
+          onSubmit={()=>{ setToast("✅ Status updated. Thanks!"); fetchAll(); setTimeout(()=>setToast(""),3000); }}
         />
       )}
     </div>
@@ -372,11 +478,11 @@ function CommuteTab({ username }) {
 
 // ── Report Tab ────────────────────────────────────────────────────────────────
 function ReportTab({ username, onReportSubmit }) {
-  const [area, setArea]   = useState("");
-  const [sev, setSev]     = useState(null);
-  const [note, setNote]   = useState("");
+  const [area, setArea]     = useState("");
+  const [sev, setSev]       = useState(null);
+  const [note, setNote]     = useState("");
   const [sending, setSending] = useState(false);
-  const [toast, setToast] = useState("");
+  const [toast, setToast]   = useState("");
   const [search, setSearch] = useState("");
 
   const filtered = AREAS.filter(a =>
@@ -399,8 +505,8 @@ function ReportTab({ username, onReportSubmit }) {
 
   const sevs = [
     { key:"moderate", label:"🌊 Ankle deep",  sub:"Walkable but wet" },
-    { key:"high",     label:"🚗 Knee deep",   sub:"Cars affected" },
-    { key:"severe",   label:"🚨 Impassable",  sub:"Road blocked" },
+    { key:"high",     label:"🚗 Knee deep",   sub:"Cars affected"    },
+    { key:"severe",   label:"🚨 Impassable",  sub:"Road blocked"     },
   ];
 
   return (
@@ -410,9 +516,7 @@ function ReportTab({ username, onReportSubmit }) {
       <div style={{ background:"linear-gradient(135deg,rgba(56,189,248,0.08),rgba(59,130,246,0.05))", border:"1px solid rgba(56,189,248,0.2)", borderRadius:16, padding:20 }}>
         <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>Seen flooding near you?</div>
         <div style={{ fontSize:13, color:"#6b7f99", marginBottom:16, lineHeight:1.5 }}>Helps thousands of Mumbaikars avoid flooded routes. Takes 5 seconds.</div>
-
         <input value={search} onChange={e=>{setSearch(e.target.value);setArea("");}} placeholder="🔍 Search area or zone…" style={{ width:"100%", background:"#131f35", border:"1px solid #1e2f4a", color:"#e8edf5", fontFamily:"'Space Grotesk',sans-serif", fontSize:13, padding:"10px 14px", borderRadius:10, marginBottom:6, outline:"none" }}/>
-
         {search && (
           <div style={{ background:"#131f35", border:"1px solid #1e2f4a", borderRadius:10, marginBottom:10, maxHeight:180, overflowY:"auto" }}>
             {filtered.length===0
@@ -425,7 +529,6 @@ function ReportTab({ username, onReportSubmit }) {
             }
           </div>
         )}
-
         <div style={{ fontSize:12, color:"#6b7f99", marginBottom:8 }}>How bad is it?</div>
         <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:12 }}>
           {sevs.map(s=>(
@@ -434,9 +537,7 @@ function ReportTab({ username, onReportSubmit }) {
             </button>
           ))}
         </div>
-
         <input value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a note (optional)" maxLength={120} style={{ width:"100%", background:"#131f35", border:"1px solid #1e2f4a", color:"#e8edf5", fontFamily:"'Space Grotesk',sans-serif", fontSize:13, padding:"11px 14px", borderRadius:10, marginBottom:12, outline:"none" }}/>
-
         <button onClick={submit} disabled={!area||!sev||sending} style={{ width:"100%", padding:14, borderRadius:12, border:"none", background:(!area||!sev)?"#1e2f4a":"linear-gradient(135deg,#2563eb,#0ea5e9)", color:(!area||!sev)?"#6b7f99":"#fff", fontSize:15, fontWeight:600, fontFamily:"'Space Grotesk',sans-serif", cursor:(!area||!sev)?"not-allowed":"pointer" }}>
           {sending?"Submitting…":"📍 Submit Report"}
         </button>
@@ -459,7 +560,7 @@ function ChatTab({ username }) {
 
   useEffect(() => {
     fetchMessages();
-    const ch = supabase.channel("chat").on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_messages"},payload=>{
+    const ch = supabase.channel("chat_live").on("postgres_changes",{event:"INSERT",schema:"public",table:"chat_messages"},payload=>{
       setMessages(prev=>[...prev,payload.new]);
     }).subscribe();
     return () => supabase.removeChannel(ch);
@@ -475,14 +576,14 @@ function ChatTab({ username }) {
     setSending(false);
   }
 
-  const SYS = [{ id:"sys1", username:"🌧️ MumbaiRains", message:"Welcome to the Mumbai Rains community! Share live updates, ask about your route, help your fellow Mumbaikars.", created_at:new Date(Date.now()-3600000).toISOString(), isSystem:true }];
-  const all = [...SYS, ...messages];
+  const SYS = [{ id:"sys1", username:"🌧️ MumbaiRainWatch", message:"Welcome! Share live updates, ask about your route, help fellow Mumbaikars stay safe. 🙏", created_at:new Date(Date.now()-3600000).toISOString(), isSystem:true }];
+  const all  = [...SYS, ...messages];
 
   return (
     <div style={{ display:"flex", flexDirection:"column", height:"calc(100vh - 160px)", paddingTop:8 }}>
       <SectionLabel>💬 Community Chat</SectionLabel>
       <div style={{ flex:1, overflowY:"auto", display:"flex", flexDirection:"column", gap:10, paddingBottom:8 }}>
-        {all.map((m,i) => {
+        {all.map((m,i)=>{
           const isMe = m.username===username && !m.isSystem;
           return (
             <div key={m.id||i} style={{ display:"flex", flexDirection:isMe?"row-reverse":"row", alignItems:"flex-end", gap:8 }}>
@@ -498,7 +599,7 @@ function ChatTab({ username }) {
         <div ref={bottomRef}/>
       </div>
       <div style={{ display:"flex", gap:8, paddingTop:10, borderTop:"1px solid #1e2f4a" }}>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),send())} placeholder="Share an update, ask about your route…" maxLength={300} style={{ flex:1, background:"#131f35", border:"1px solid #1e2f4a", color:"#e8edf5", fontFamily:"'Space Grotesk',sans-serif", fontSize:13, padding:"11px 14px", borderRadius:12, outline:"none" }}/>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),send())} placeholder="Share an update or ask about a route…" maxLength={300} style={{ flex:1, background:"#131f35", border:"1px solid #1e2f4a", color:"#e8edf5", fontFamily:"'Space Grotesk',sans-serif", fontSize:13, padding:"11px 14px", borderRadius:12, outline:"none" }}/>
         <button onClick={send} disabled={!input.trim()||sending} style={{ padding:"11px 16px", borderRadius:12, border:"none", background:input.trim()?"linear-gradient(135deg,#2563eb,#0ea5e9)":"#1e2f4a", color:input.trim()?"#fff":"#4a5568", cursor:input.trim()?"pointer":"not-allowed", fontSize:18 }}>➤</button>
       </div>
     </div>
@@ -510,16 +611,16 @@ function AboutTab() {
   return (
     <div style={{ paddingTop:8 }}>
       <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20, marginBottom:12 }}>
-        <div style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>About MumbaiRains.com</div>
-        <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.7 }}>Mumbai's first hyperlocal, crowdsourced flood, traffic and train alert platform. Real reports from real Mumbaikars — updated every minute during monsoon.</div>
+        <div style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>About MumbaiRainWatch.com</div>
+        <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.7 }}>Mumbai's first decision-first flood alert platform. We don't just show data — we tell you what to do. Real reports from real Mumbaikars, updated every minute during monsoon.</div>
       </div>
       <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20, marginBottom:12 }}>
         <div style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>How it works</div>
         {[
-          { icon:"🌧️", t:"Live rain data",       b:"OpenWeatherMap rainfall updated every 15 minutes" },
+          { icon:"🚦", t:"Decision Engine",      b:"Combines rain data + crowd reports + train status into one clear verdict: Go / Caution / Stay Home" },
+          { icon:"🌧️", t:"Live rain data",        b:"OpenWeatherMap rainfall updated every 15 minutes for Mumbai" },
           { icon:"👥", t:"Crowdsourced reports",  b:"Mumbaikars report waterlogging, train delays and traffic in real time" },
-          { icon:"🚆", t:"Train line status",     b:"Western, Central and Harbour line status from commuters" },
-          { icon:"🚗", t:"Traffic updates",       b:"Major highway and route status from drivers on the road" },
+          { icon:"📍", t:"Location aware",        b:"Detects your area and personalises the alert and commute advice for you" },
           { icon:"💬", t:"Community chat",        b:"Talk to fellow Mumbaikars live — ask about routes, share updates" },
         ].map((h,i)=>(
           <div key={i} style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom:14 }}>
@@ -531,7 +632,7 @@ function AboutTab() {
       <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20 }}>
         <div style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>For housing societies & businesses</div>
         <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.6, marginBottom:14 }}>Dedicated area dashboard + WhatsApp alerts for your pincode. Starting ₹199/month.</div>
-        <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:10, padding:12, fontSize:12, color:"#38bdf8", textAlign:"center", fontWeight:600 }}>📩 hello@mumbairains.com</div>
+        <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:10, padding:12, fontSize:12, color:"#38bdf8", textAlign:"center", fontWeight:600 }}>📩 hello@mumbairainwatch.com</div>
       </div>
     </div>
   );
@@ -539,11 +640,15 @@ function AboutTab() {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [tab, setTab]         = useState("home");
-  const [weather, setWeather] = useState(null);
-  const [reports, setReports] = useState([]);
+  const [tab, setTab]             = useState("home");
+  const [weather, setWeather]     = useState(null);
+  const [reports, setReports]     = useState([]);
+  const [trainReports, setTrainReports]     = useState([]);
+  const [trafficReports, setTrafficReports] = useState([]);
   const [modalArea, setModalArea] = useState(null);
   const [lastUpdated, setLastUpdated] = useState("");
+  const [userArea, setUserArea]   = useState(() => localStorage.getItem("mr_area") || "");
+  const [detecting, setDetecting] = useState(false);
   const [username] = useState(()=>localStorage.getItem("mr_username")||(()=>{const n=randomName();localStorage.setItem("mr_username",n);return n;})());
 
   const rainFactor = weather
@@ -551,8 +656,7 @@ export default function App() {
     : weather.rain > 10 ? 0.6
     : weather.rain > 5  ? 0.35
     : weather.rain > 1  ? 0.15
-    : 0
-    : 0;
+    : 0 : 0;
 
   const areaData = AREAS.map(a => {
     const ar = reports.filter(r=>r.area_name===a.name);
@@ -562,23 +666,47 @@ export default function App() {
     return { ...a, reports:ar.length, score, status:statusFromScore(score) };
   }).sort((a,b)=>b.score-a.score);
 
+  const alertLevel = computeAlertLevel(weather, areaData, trainReports, trafficReports);
   const severeCount = areaData.filter(a=>a.status==="severe").length;
   const safeCount   = areaData.filter(a=>a.status==="safe").length;
+
+  // Location detection
+  async function detectLocation() {
+    setDetecting(true);
+    if (!navigator.geolocation) { setDetecting(false); return; }
+    navigator.geolocation.getCurrentPosition(async pos => {
+      try {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const res  = await fetch(`https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${OWM_API_KEY}`);
+        const data = await res.json();
+        const name = data[0]?.name || "Mumbai";
+        setUserArea(name);
+        localStorage.setItem("mr_area", name);
+      } catch { setUserArea("Mumbai"); }
+      setDetecting(false);
+    }, () => { setDetecting(false); });
+  }
 
   async function fetchWeather() {
     try {
       const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Mumbai,IN&appid=${OWM_API_KEY}&units=metric`);
-      const d = await res.json();
-      const rain = d.rain?.["1h"]??d.rain?.["3h"]??0;
+      const d   = await res.json();
+      const rain = d.rain?.["1h"] ?? d.rain?.["3h"] ?? 0;
       const icons = { Thunderstorm:"⛈️", Drizzle:"🌦️", Rain:"🌧️", Clouds:"☁️", Clear:"☀️", Mist:"🌫️", Fog:"🌫️" };
-      setWeather({ temp:Math.round(d.main.temp), desc:d.weather[0].description, humidity:d.main.humidity, wind:Math.round(d.wind.speed*3.6), rain:rain.toFixed(1), icon:icons[d.weather[0].main]||"🌧️" });
+      setWeather({ temp:Math.round(d.main.temp), desc:d.weather[0].description, humidity:d.main.humidity, wind:Math.round(d.wind.speed*3.6), rain:parseFloat(rain.toFixed(1)), icon:icons[d.weather[0].main]||"🌧️" });
     } catch {}
   }
 
   async function fetchReports() {
     const since = new Date(Date.now()-6*3600*1000).toISOString();
-    const { data } = await supabase.from("flood_reports").select("*").gte("created_at",since).order("created_at",{ascending:false});
-    if (data) setReports(data);
+    const [fr, tr, tfr] = await Promise.all([
+      supabase.from("flood_reports").select("*").gte("created_at",since).order("created_at",{ascending:false}),
+      supabase.from("train_reports").select("*").gte("created_at",new Date(Date.now()-2*3600*1000).toISOString()).order("created_at",{ascending:false}),
+      supabase.from("traffic_reports").select("*").gte("created_at",new Date(Date.now()-2*3600*1000).toISOString()).order("created_at",{ascending:false}),
+    ]);
+    if (fr.data)  setReports(fr.data);
+    if (tr.data)  setTrainReports(tr.data);
+    if (tfr.data) setTrafficReports(tfr.data);
     const now = new Date();
     setLastUpdated(`${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")} IST`);
   }
@@ -586,12 +714,18 @@ export default function App() {
   useEffect(() => {
     fetchWeather(); fetchReports();
     const interval = setInterval(()=>{ fetchWeather(); fetchReports(); }, 5*60*1000);
-    const ch = supabase.channel("reports_rt").on("postgres_changes",{event:"INSERT",schema:"public",table:"flood_reports"},()=>fetchReports()).subscribe();
+    const ch = supabase.channel("all_reports")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"flood_reports"},()=>fetchReports())
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"train_reports"},()=>fetchReports())
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"traffic_reports"},()=>fetchReports())
+      .subscribe();
     return () => { clearInterval(interval); supabase.removeChannel(ch); };
   }, []);
 
+  const rainIntensity = weather ? Math.min(1, weather.rain / 20) : 0;
+
   const navItems = [
-    { key:"home",    icon:"🌊", label:"Status"  },
+    { key:"home",    icon:"🚦", label:"Alert"   },
     { key:"commute", icon:"🚆", label:"Commute" },
     { key:"report",  icon:"📍", label:"Report"  },
     { key:"chat",    icon:"💬", label:"Chat"    },
@@ -600,8 +734,19 @@ export default function App() {
 
   return (
     <div style={{ background:"#060c1a", color:"#e8edf5", fontFamily:"'Space Grotesk',sans-serif", minHeight:"100vh" }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;}body{background:#060c1a;overflow-x:hidden;}::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:#0d1526;}::-webkit-scrollbar-thumb{background:#1e2f4a;border-radius:2px;}select option{background:#131f35;color:#e8edf5;}input::placeholder{color:#4a5568;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}@keyframes scan{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
-      <RainCanvas/>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:#060c1a;overflow-x:hidden;}
+        ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:#0d1526;}::-webkit-scrollbar-thumb{background:#1e2f4a;border-radius:2px;}
+        select option{background:#131f35;color:#e8edf5;}
+        input::placeholder{color:#4a5568;}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+        @keyframes scan{0%,100%{opacity:0.3}50%{opacity:1}}
+      `}</style>
+
+      <RainCanvas intensity={rainIntensity}/>
+
       <div style={{ maxWidth:480, margin:"0 auto", padding:"0 14px 88px", position:"relative", zIndex:1 }}>
 
         {/* Header */}
@@ -609,7 +754,7 @@ export default function App() {
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ fontSize:24 }}>🌧️</span>
             <div>
-              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:15, fontWeight:700, color:"#38bdf8", letterSpacing:-0.5 }}>MumbaiRains.com</div>
+              <div style={{ fontFamily:"'Space Mono',monospace", fontSize:14, fontWeight:700, color:"#38bdf8", letterSpacing:-0.5 }}>MumbaiRainWatch.com</div>
               <div style={{ fontSize:10, color:"#6b7f99", letterSpacing:1, textTransform:"uppercase" }}>Know before you go</div>
             </div>
           </div>
@@ -618,38 +763,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* Home Tab */}
+        {/* HOME TAB */}
         {tab==="home" && <>
-          <div style={{ background:"linear-gradient(135deg,rgba(239,68,68,0.12),rgba(220,38,38,0.06))", border:"1px solid rgba(239,68,68,0.25)", borderRadius:16, padding:20, marginBottom:16, position:"relative", overflow:"hidden" }}>
-            <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background:"linear-gradient(90deg,transparent,#ef4444,transparent)", animation:"scan 3s ease-in-out infinite" }}/>
-            <div style={{ fontSize:10, letterSpacing:2, textTransform:"uppercase", color:"#f87171", marginBottom:8, fontFamily:"'Space Mono',monospace" }}>⚠ Active Weather Alert</div>
-            <div style={{ fontSize:26, fontWeight:700, lineHeight:1.1, marginBottom:6 }}>
-              {weather ? (weather.rain > 5 ? "Heavy Rain" : weather.rain > 0 ? "Light Rain" : "Mostly Clear") : "Loading…"}
-              <br/>
-              <span style={{ color: weather && weather.rain > 5 ? "#ef4444" : weather && weather.rain > 0 ? "#f59e0b" : "#10b981" }}>Mumbai Today</span>
-            </div>
-            <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.5 }}>
-              {weather
-                ? weather.rain > 5
-                  ? `IMD alert active. ${severeCount} areas reporting waterlogging. Avoid low-lying roads.`
-                  : weather.rain > 0
-                  ? `Light rain detected. ${severeCount} areas on watch. Check before stepping out.`
-                  : `No active rain right now. ${severeCount} areas still recovering. Roads mostly clear.`
-                : "Loading weather data…"
-              }
-            </div>
-            <div style={{ display:"flex", gap:8, marginTop:14, alignItems:"center" }}>
-              <div style={{ flex:1, height:4, borderRadius:2, background:"#1e2f4a", overflow:"hidden" }}>
-                <div style={{ height:"100%", borderRadius:2, background:"linear-gradient(90deg,#f59e0b,#ef4444)", width:`${weather?.rain?Math.min(100,weather.rain*10):65}%`, transition:"width 1s ease" }}/>
-              </div>
-              <div style={{ fontSize:11, color:"#6b7f99", fontFamily:"'Space Mono',monospace", whiteSpace:"nowrap" }}>{weather?`${weather.rain}mm · ${weather.desc}`:"Loading…"}</div>
-            </div>
-          </div>
-
+          <LocationBanner userArea={userArea} onDetect={detectLocation} detecting={detecting}/>
+          <DecisionHero alertLevel={alertLevel} weather={weather} userArea={userArea} areaData={areaData}/>
           <WeatherStrip weather={weather}/>
 
+          {/* Stats */}
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:8, marginBottom:8 }}>
-            {[{num:reports.length,label:"Reports today"},{num:severeCount,label:"Severe zones"},{num:safeCount,label:"Areas clear"}].map((s,i)=>(
+            {[
+              { num:reports.length,  label:"Reports today" },
+              { num:severeCount,     label:"Severe zones"  },
+              { num:safeCount,       label:"Areas clear"   },
+            ].map((s,i)=>(
               <div key={i} style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:12, padding:"14px 12px", textAlign:"center" }}>
                 <div style={{ fontFamily:"'Space Mono',monospace", fontSize:22, fontWeight:700, color:"#38bdf8" }}>{s.num}</div>
                 <div style={{ fontSize:11, color:"#6b7f99", marginTop:3 }}>{s.label}</div>
@@ -673,7 +799,7 @@ export default function App() {
       {/* Bottom Nav */}
       <div style={{ position:"fixed", bottom:0, left:0, right:0, background:"rgba(6,12,26,0.96)", backdropFilter:"blur(12px)", borderTop:"1px solid #1e2f4a", display:"flex", justifyContent:"space-around", padding:"10px 0 16px", zIndex:100 }}>
         {navItems.map(n=>(
-          <div key={n.key} onClick={()=>setTab(n.key)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, color:tab===n.key?"#38bdf8":"#6b7f99", fontSize:10, cursor:"pointer", padding:"4px 10px", transition:"color 0.15s" }}>
+          <div key={n.key} onClick={()=>setTab(n.key)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, color:tab===n.key?"#38bdf8":"#6b7f99", fontSize:10, cursor:"pointer", padding:"4px 8px", transition:"color 0.15s" }}>
             <span style={{ fontSize:20 }}>{n.icon}</span>{n.label}
           </div>
         ))}
