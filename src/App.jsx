@@ -42,7 +42,11 @@ const AREAS = [
   { name: "Goregaon East",         zone: "Goregaon",        riskBase: 40 },
   { name: "Mulund Check Naka",     zone: "Mulund",          riskBase: 42 },
   { name: "Thane Station Area",    zone: "Thane",           riskBase: 55 },
-];
+  { name: "Ghansoli",    zone: "NaviMumbai",    riskBase: 20 },
+  { name: "Vashi",    zone: "NaviMumbai",    riskBase: 20 },
+  { name: "Ulwe",    zone: "Uran",    riskBase: 10 },
+  { name: "Kharghar",    zone: "Panvel",    riskBase: 10 },
+  ];
 
 // ── TRAIN LINES ───────────────────────────────────────────────────────────────
 const TRAIN_LINES = [
