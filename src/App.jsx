@@ -162,7 +162,9 @@ function AreaCard({ area, onClick }) {
         <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{area.name}</div>
         <div style={{ fontSize:12, color:"#6b7f99", display:"flex", gap:8 }}>
           <span>{area.zone}</span>
-          <span style={{ fontFamily:"'Space Mono',monospace" }}>{area.reports>0?`${area.reports} reports`:"No reports"}</span>
+          <span style={{ fontFamily:"'Space Mono',monospace", background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:20, padding:"2px 8px", color: area.reports>0?"#38bdf8":"#4a5568" }}>
+  {area.reports>0 ? `👥 ${area.reports}` : "👥 0"}
+</span>
         </div>
       </div>
       <div style={{ background:c+"22", color:c, border:`1px solid ${c}44`, borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:600, fontFamily:"'Space Mono',monospace", whiteSpace:"nowrap" }}>{SEV_LABEL[area.status]}</div>
