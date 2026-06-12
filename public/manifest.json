@@ -1,0 +1,15 @@
+{
+  "name": "MumbaiRainWatch — Real-Time Flood Alerts",
+  "short_name": "MumbaiRainWatch",
+  "description": "Real-time Mumbai waterlogging alerts, flood status, train delays and traffic updates.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060c1a",
+  "theme_color": "#060c1a",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "64x64 32x32 24x24 16x16", "type": "image/x-icon" }
+  ],
+  "categories": ["weather", "utilities"],
+  "lang": "en-IN"
+}

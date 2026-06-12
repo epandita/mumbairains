@@ -3,14 +3,89 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <meta name="theme-color" content="#060c1a" />
-    <meta name="description" content="Real-time Mumbai waterlogging alerts. Crowdsourced flood, train and traffic reports." />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="MumbaiRains" />
-    <title>MumbaiRains.com — Know Before You Go</title>
+
+    <!-- Primary SEO -->
+    <title>MumbaiRainWatch — Real-Time Mumbai Flood & Rain Alerts</title>
+    <meta name="description" content="Real-time Mumbai waterlogging alerts, flood status, local train delays and traffic updates. Crowdsourced by Mumbaikars. Know before you go."/>
+    <meta name="keywords" content="mumbai rains today, mumbai waterlogging, mumbai flood alert, mumbai flood areas, andheri waterlogging, dadar waterlogging, kurla flooding, mumbai local train delay today, mumbai monsoon alert, mumbai rain watch, bmc flood alert mumbai, mumbai rain 2025"/>
+    <meta name="author" content="MumbaiRainWatch"/>
+    <meta name="robots" content="index, follow"/>
+    <link rel="canonical" href="https://mumbairainwatch.com"/>
+
+    <!-- Open Graph — WhatsApp / Facebook preview -->
+    <meta property="og:type" content="website"/>
+    <meta property="og:url" content="https://mumbairainwatch.com"/>
+    <meta property="og:title" content="MumbaiRainWatch — Real-Time Flood & Rain Alerts"/>
+    <meta property="og:description" content="Check Mumbai waterlogging, flood status, train delays and traffic before stepping out. Updated every 15 minutes. Crowdsourced by Mumbaikars."/>
+    <meta property="og:site_name" content="MumbaiRainWatch"/>
+    <meta property="og:locale" content="en_IN"/>
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary"/>
+    <meta name="twitter:site" content="@mumbairainwatch"/>
+    <meta name="twitter:title" content="MumbaiRainWatch — Real-Time Mumbai Flood Alerts"/>
+    <meta name="twitter:description" content="Check Mumbai waterlogging, flood status and train delays before stepping out. Updated every 15 minutes."/>
+    <meta name="twitter:url" content="https://mumbairainwatch.com"/>
+
+    <!-- PWA / Mobile -->
+    <meta name="theme-color" content="#060c1a"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+    <meta name="apple-mobile-web-app-title" content="MumbaiRainWatch"/>
+    <meta name="mobile-web-app-capable" content="yes"/>
+
+    <!-- Geo targeting -->
+    <meta name="geo.region" content="IN-MH"/>
+    <meta name="geo.placename" content="Mumbai, Maharashtra, India"/>
+    <meta name="geo.position" content="19.0760;72.8777"/>
+    <meta name="ICBM" content="19.0760, 72.8777"/>
+
+    <!-- Language -->
+    <meta http-equiv="content-language" content="en-IN"/>
+
+    <!-- Structured data — tells Google what this site is -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "MumbaiRainWatch",
+      "url": "https://mumbairainwatch.com",
+      "description": "Real-time Mumbai waterlogging alerts, flood status, local train delays and traffic updates crowdsourced by Mumbaikars.",
+      "applicationCategory": "WeatherApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "INR"
+      },
+      "areaServed": {
+        "@type": "City",
+        "name": "Mumbai",
+        "addressCountry": "IN"
+      }
+    }
+    </script>
+
+    <link rel="manifest" href="/manifest.json"/>
   </head>
   <body>
     <div id="root"></div>
+
+    <!-- SEO text content — visible to Google crawlers -->
+    <noscript>
+      <div style="font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px;">
+        <h1>MumbaiRainWatch — Real-Time Mumbai Flood & Rain Alerts</h1>
+        <p>MumbaiRainWatch provides real-time waterlogging alerts, flood status updates, local train delay information and traffic updates for Mumbai during monsoon season. Crowdsourced by Mumbaikars for Mumbaikars.</p>
+        <h2>Mumbai Flood-Prone Areas We Monitor</h2>
+        <p>Andheri Subway, Hindmata Junction, Milan Subway, Kings Circle, Sion Junction, Parel Naka, Wadala, Kurla Station Road, Sakinaka Junction, Marol Naka, Kanjurmarg Station, Ghatkopar, Kalyan, Bhandup, Lalbaug, Bandra, Malad, Borivali, Santacruz, Dharavi, Vikhroli, Powai, Colaba, Goregaon, Mulund, Thane and more.</p>
+        <h2>Mumbai Local Train Status</h2>
+        <p>Real-time crowdsourced status for Western Line (Churchgate to Virar), Central Line (CSMT to Kalyan) and Harbour Line (CSMT to Panvel).</p>
+        <h2>About MumbaiRainWatch</h2>
+        <p>Mumbai's first decision-first flood alert platform. We don't just show rainfall data — we tell you whether it is safe to step out. Enable JavaScript to use the full app.</p>
+        <p>Contact: hello@mumbairainwatch.com</p>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
