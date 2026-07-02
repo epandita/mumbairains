@@ -189,6 +189,69 @@ function RainCanvas({ intensity = 1 }) {
   return <canvas ref={ref} style={{ position:"fixed", inset:0, zIndex:0, pointerEvents:"none" }} />;
 }
 
+
+// ── Share Button ──────────────────────────────────────────────────────────────
+function ShareButton({ alertLevel, weather, areaData }) {
+  const [shared, setShared] = useState(false);
+
+  function share() {
+    const severeAreas = areaData
+      .filter(a => a.status === "severe")
+      .slice(0, 3)
+      .map(a => a.name)
+      .join(", ");
+
+    const highAreas = areaData
+      .filter(a => a.status === "high")
+      .slice(0, 2)
+      .map(a => a.name)
+      .join(", ");
+
+    const messages = {
+      red:    `🔴 *MUMBAI RED ALERT* 🔴\n\nSevere flooding right now!\n📍 ${severeAreas || "Multiple areas"}\n\nDo NOT step out. Roads blocked.\n\n🌧️ Check live: https://mumbairainwatch.com`,
+      orange: `🟠 *MUMBAI ORANGE ALERT* 🟠\n\nActive waterlogging in multiple areas.\n📍 ${severeAreas || highAreas || "Multiple areas"}\n\nAvoid subways and low-lying roads.\n\n🌧️ Check live: https://mumbairainwatch.com`,
+      yellow: `🟡 *MUMBAI YELLOW ALERT* 🟡\n\nLight rain — proceed with caution.\nCheck your route before stepping out.\n\n🌧️ Check live: https://mumbairainwatch.com`,
+      green:  `🟢 *MUMBAI IS CLEAR* ✅\n\nNo active flooding right now.\nSafe to commute!\n\n🌧️ Check live: https://mumbairainwatch.com`,
+    };
+
+    const text = messages[alertLevel];
+
+    if (navigator.share) {
+      navigator.share({
+        title: "MumbaiRainWatch Alert",
+        text,
+        url: "https://mumbairainwatch.com"
+      }).catch(() => {});
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+    }
+
+    setShared(true);
+    setTimeout(() => setShared(false), 3000);
+  }
+
+  const colors = {
+    red: "#ef4444", orange: "#f97316",
+    yellow: "#f59e0b", green: "#10b981"
+  };
+  const c = colors[alertLevel];
+
+  return (
+    <button onClick={share} style={{
+      width: "100%", marginTop: 12, padding: "12px 16px",
+      borderRadius: 12, border: `1px solid ${c}44`,
+      background: shared ? c+"25" : c+"12",
+      color: c, fontSize: 14, fontWeight: 600,
+      fontFamily: "'Space Grotesk', sans-serif",
+      cursor: "pointer", display: "flex",
+      alignItems: "center", justifyContent: "center", gap: 8,
+      transition: "all 0.2s"
+    }}>
+      {shared ? "✅ Shared! Stay safe Mumbai 🙏" : "📤 Share this alert on WhatsApp"}
+    </button>
+  );
+}
+
 // ── Decision Hero Card ────────────────────────────────────────────────────────
 function DecisionHero({ alertLevel, weather, userArea, areaData }) {
   const d = getDecision(alertLevel, weather, userArea);
@@ -235,6 +298,7 @@ function DecisionHero({ alertLevel, weather, userArea, areaData }) {
           </div>
         </div>
       )}
+      <ShareButton alertLevel={alertLevel} weather={weather} areaData={areaData}/>
     </div>
   );
 }
