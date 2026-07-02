@@ -156,6 +156,120 @@ function randomName() {
   return a[Math.floor(Math.random()*a.length)] + b[Math.floor(Math.random()*b.length)] + Math.floor(Math.random()*99);
 }
 
+
+// ── Push Notification Hook ────────────────────────────────────────────────────
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || "";
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+function usePushNotifications(username) {
+  const [permission, setPermission] = useState(Notification.permission);
+  const [subscribed, setSubscribed] = useState(false);
+
+  async function subscribe() {
+    try {
+      // Register service worker
+      const reg = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+
+      // Request permission
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== "granted") return;
+
+      // Subscribe to push
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+
+      // Save to server
+      const key  = sub.getKey("p256dh");
+      const auth = sub.getKey("auth");
+      await fetch("/api/save-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          endpoint: sub.endpoint,
+          p256dh:   btoa(String.fromCharCode(...new Uint8Array(key))),
+          auth:     btoa(String.fromCharCode(...new Uint8Array(auth))),
+          username,
+        }),
+      });
+
+      setSubscribed(true);
+      localStorage.setItem("mr_push_subscribed", "true");
+    } catch (err) {
+      console.error("Push subscription failed:", err);
+    }
+  }
+
+  async function unsubscribe() {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) {
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) await sub.unsubscribe();
+    }
+    setSubscribed(false);
+    localStorage.removeItem("mr_push_subscribed");
+  }
+
+  useEffect(() => {
+    if (localStorage.getItem("mr_push_subscribed") === "true") setSubscribed(true);
+  }, []);
+
+  return { permission, subscribed, subscribe, unsubscribe };
+}
+
+// ── Notification Bell Button ──────────────────────────────────────────────────
+function NotificationBell({ permission, subscribed, subscribe, unsubscribe }) {
+  const [loading, setLoading] = useState(false);
+  const [toast, setToast]     = useState("");
+
+  async function toggle() {
+    setLoading(true);
+    if (subscribed) {
+      await unsubscribe();
+      setToast("🔕 Notifications turned off");
+    } else {
+      await subscribe();
+      setToast("🔔 You will get alerts for Red & Orange alerts!");
+    }
+    setLoading(false);
+    setTimeout(() => setToast(""), 3500);
+  }
+
+  if (!("Notification" in window) || !("serviceWorker" in navigator)) return null;
+
+  return (
+    <>
+      {toast && (
+        <div style={{ position:"fixed", bottom:90, left:"50%", transform:"translateX(-50%)", background:"#1e3a5f", color:"#e8edf5", padding:"12px 20px", borderRadius:12, fontSize:13, fontWeight:600, zIndex:999, whiteSpace:"nowrap", border:"1px solid rgba(56,189,248,0.3)" }}>
+          {toast}
+        </div>
+      )}
+      <button onClick={toggle} disabled={loading} style={{
+        display:"flex", alignItems:"center", gap:6,
+        background: subscribed ? "rgba(56,189,248,0.15)" : "rgba(255,255,255,0.05)",
+        border: subscribed ? "1px solid rgba(56,189,248,0.4)" : "1px solid #1e2f4a",
+        borderRadius:20, padding:"5px 12px",
+        color: subscribed ? "#38bdf8" : "#6b7f99",
+        fontSize:12, fontWeight:600,
+        fontFamily:"'Space Grotesk',sans-serif",
+        cursor:"pointer"
+      }}>
+        <span style={{ fontSize:14 }}>{subscribed ? "🔔" : "🔕"}</span>
+        {loading ? "..." : subscribed ? "Alerts ON" : "Get Alerts"}
+      </button>
+    </>
+  );
+}
+
 // ── Rain Canvas ───────────────────────────────────────────────────────────────
 function RainCanvas({ intensity = 1 }) {
   const ref = useRef();
@@ -714,6 +828,7 @@ export default function App() {
   const [userArea, setUserArea]   = useState(() => localStorage.getItem("mr_area") || "");
   const [detecting, setDetecting] = useState(false);
   const [username] = useState(()=>localStorage.getItem("mr_username")||(()=>{const n=randomName();localStorage.setItem("mr_username",n);return n;})());
+  const { permission, subscribed, subscribe, unsubscribe } = usePushNotifications(username);
 
   const rainFactor = weather
     ? weather.rain > 20 ? 0.85
@@ -775,6 +890,31 @@ export default function App() {
     setLastUpdated(`${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")} IST`);
   }
 
+  const prevAlertRef = useRef(null);
+
+  useEffect(() => {
+    if (prevAlertRef.current && prevAlertRef.current !== alertLevel) {
+      if ((alertLevel === "red" || alertLevel === "orange") && subscribed) {
+        const messages = {
+          red:    { title:"🔴 Mumbai RED ALERT", body:"Severe flooding active. Do NOT step out now." },
+          orange: { title:"🟠 Mumbai ORANGE ALERT", body:"Active waterlogging. Avoid subways and low-lying roads." },
+        };
+        const msg = messages[alertLevel];
+        fetch("/api/send-push", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({
+            secret: import.meta.env.VITE_PUSH_SECRET,
+            alertLevel,
+            title: msg.title,
+            body:  msg.body,
+          })
+        }).catch(()=>{});
+      }
+    }
+    prevAlertRef.current = alertLevel;
+  }, [alertLevel]);
+
   useEffect(() => {
     fetchWeather(); fetchReports();
     const interval = setInterval(()=>{ fetchWeather(); fetchReports(); }, 5*60*1000);
@@ -822,8 +962,11 @@ export default function App() {
               <div style={{ fontSize:10, color:"#6b7f99", letterSpacing:1, textTransform:"uppercase" }}>Know before you go</div>
             </div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", padding:"4px 10px", borderRadius:20, fontSize:11, color:"#f87171", fontFamily:"'Space Mono',monospace" }}>
-            <div style={{ width:6, height:6, borderRadius:"50%", background:"#ef4444", animation:"pulse 1.5s infinite" }}/>LIVE
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <NotificationBell permission={permission} subscribed={subscribed} subscribe={subscribe} unsubscribe={unsubscribe}/>
+            <div style={{ display:"flex", alignItems:"center", gap:6, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.3)", padding:"4px 10px", borderRadius:20, fontSize:11, color:"#f87171", fontFamily:"'Space Mono',monospace" }}>
+              <div style={{ width:6, height:6, borderRadius:"50%", background:"#ef4444", animation:"pulse 1.5s infinite" }}/>LIVE
+            </div>
           </div>
         </div>
 
