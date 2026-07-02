@@ -809,7 +809,7 @@ function AboutTab() {
       </div>
       <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20 }}>
         <div style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>For housing societies & businesses</div>
-        <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.6, marginBottom:14 }}>Dedicated area dashboard + WhatsApp alerts for your pincode. Starting ₹199/month.</div>
+        <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:10, padding:12, fontSize:12, color:"#38bdf8", textAlign:"center", fontWeight:600 }}>📩 Please contact for any suggestions to eternalep35@gmail.com</div>
         <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:10, padding:12, fontSize:12, color:"#38bdf8", textAlign:"center", fontWeight:600 }}>📩 hello@mumbairainwatch.com</div>
       </div>
     </div>
