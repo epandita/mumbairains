@@ -277,6 +277,53 @@ function NotificationBell({ permission, subscribed, subscribe, unsubscribe }) {
   );
 }
 
+
+// ── Scrolling Ticker Banner ───────────────────────────────────────────────────
+function TickerBanner() {
+  const [message, setMessage] = useState("");
+  const [active, setActive]   = useState(false);
+
+  const fetchTicker = useCallback(async () => {
+    const { data } = await supabase.from("site_ticker").select("*").eq("id", 1).single();
+    if (data) {
+      setMessage(data.message);
+      setActive(data.active);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTicker();
+    const ch = supabase.channel("ticker_live")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "site_ticker" }, payload => {
+        setMessage(payload.new.message);
+        setActive(payload.new.active);
+      })
+      .subscribe();
+    return () => supabase.removeChannel(ch);
+  }, [fetchTicker]);
+
+  if (!active || !message) return null;
+
+  return (
+    <div style={{
+      background: "linear-gradient(90deg, rgba(56,189,248,0.12), rgba(37,99,235,0.08))",
+      border: "1px solid rgba(56,189,248,0.25)",
+      borderRadius: 10, padding: "8px 0", marginBottom: 12,
+      overflow: "hidden", position: "relative", whiteSpace: "nowrap"
+    }}>
+      <div style={{
+        display: "inline-block",
+        paddingLeft: "100%",
+        animation: "ticker-scroll 22s linear infinite",
+        fontSize: 12.5, fontWeight: 600, color: "#38bdf8",
+        fontFamily: "'Space Grotesk',sans-serif"
+      }}>
+        {message}
+      </div>
+    </div>
+  );
+}
+
 // ── Rain Canvas ───────────────────────────────────────────────────────────────
 function RainCanvas({ intensity = 1 }) {
   const ref = useRef();
@@ -1014,6 +1061,7 @@ export default function App() {
         input::placeholder{color:#4a5568;}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
         @keyframes scan{0%,100%{opacity:0.3}50%{opacity:1}}
+        @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
       `}</style>
 
       <RainCanvas intensity={rainIntensity}/>
@@ -1036,6 +1084,8 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        <TickerBanner/>
 
         {/* HOME TAB */}
         {tab==="home" && <>
