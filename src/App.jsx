@@ -56,8 +56,8 @@ const TRAFFIC_ROUTES = [
 ];
 
 const SEV_SCORE = { moderate: 1, high: 2, severe: 3 };
-const SEV_LABEL = { severe: "🚨 Severe", high: "⚠️ High", moderate: "🔵 Moderate", safe: "✅ Clear" };
-const SEV_COLOR = { severe: "#ef4444", high: "#f59e0b", moderate: "#3b82f6", safe: "#10b981" };
+const SEV_LABEL = { severe: "🚨 Severe", high: "⚠️ High", moderate: "🔵 Moderate", safe: "✅ Clear", unknown: "⚪ Unconfirmed" };
+const SEV_COLOR = { severe: "#ef4444", high: "#f59e0b", moderate: "#3b82f6", safe: "#10b981", unknown: "#6b7f99" };
 
 const TRAIN_STATUS_OPTS = [
   { key: "normal",  label: "🟢 Running Normal",    color: "#10b981" },
@@ -141,6 +141,13 @@ function statusFromScore(s) {
   if (s >= 55) return "high";
   if (s >= 30) return "moderate";
   return "safe";
+}
+
+function mostRecentTime(reportsArr) {
+  if (reportsArr.length === 0) return null;
+  return reportsArr.reduce((latest, r) =>
+    new Date(r.created_at) > new Date(latest.created_at) ? r : latest
+  ).created_at;
 }
 
 function timeAgo(ts) {
@@ -463,20 +470,60 @@ function WeatherStrip({ weather }) {
 }
 
 // ── Area Card ─────────────────────────────────────────────────────────────────
-function AreaCard({ area, onClick }) {
+function AreaCard({ area, onClick, onQuickReport, username }) {
   const c = SEV_COLOR[area.status];
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const freshnessText = area.lastReportAt
+    ? `Last report ${timeAgo(area.lastReportAt)}`
+    : "No reports yet — be first";
+
+  async function quickSubmit(e, severity) {
+    e.stopPropagation();
+    setSending(true);
+    await onQuickReport(area.name, severity);
+    setSending(false);
+    setQuickOpen(false);
+  }
+
   return (
-    <div onClick={onClick} style={{ background:"#0d1526", border:`1px solid ${c}55`, borderRadius:12, padding:"13px 15px", display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer", position:"relative", overflow:"hidden", marginBottom:8 }}>
-      <div style={{ flex:1 }}>
-        <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{area.name}</div>
-        <div style={{ fontSize:12, color:"#6b7f99", display:"flex", gap:8, alignItems:"center" }}>
-          <span>{area.zone}</span>
-          <span style={{ background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:20, padding:"2px 8px", color:area.reports>0?"#38bdf8":"#4a5568", fontFamily:"'Space Mono',monospace", fontSize:11 }}>
-            👥 {area.reports}
-          </span>
+    <div style={{ background:"#0d1526", border:`1px solid ${c}55`, borderRadius:12, padding:"13px 15px", position:"relative", overflow:"hidden", marginBottom:8 }}>
+      <div onClick={onClick} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer" }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:15, fontWeight:600, marginBottom:3 }}>{area.name}</div>
+          <div style={{ fontSize:12, color:"#6b7f99", display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+            <span>{area.zone}</span>
+            <span style={{ background:"rgba(56,189,248,0.1)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:20, padding:"2px 8px", color:area.reports>0?"#38bdf8":"#4a5568", fontFamily:"'Space Mono',monospace", fontSize:11 }}>
+              👥 {area.reports}
+            </span>
+          </div>
+          <div style={{ fontSize:10, color: area.status==="unknown" ? "#f59e0b" : "#4a5568", marginTop:4, fontFamily:"'Space Mono',monospace" }}>
+            {area.status === "unknown" && "⚠️ "}{freshnessText}
+          </div>
         </div>
+        <div style={{ background:c+"22", color:c, border:`1px solid ${c}44`, borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:600, fontFamily:"'Space Mono',monospace", whiteSpace:"nowrap" }}>{SEV_LABEL[area.status]}</div>
       </div>
-      <div style={{ background:c+"22", color:c, border:`1px solid ${c}44`, borderRadius:20, padding:"4px 10px", fontSize:11, fontWeight:600, fontFamily:"'Space Mono',monospace", whiteSpace:"nowrap" }}>{SEV_LABEL[area.status]}</div>
+
+      {/* Quick report toggle */}
+      <div onClick={e=>{e.stopPropagation(); setQuickOpen(o=>!o);}} style={{ marginTop:10, display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"6px", borderRadius:8, background:"rgba(56,189,248,0.06)", border:"1px dashed rgba(56,189,248,0.25)", cursor:"pointer" }}>
+        <span style={{ fontSize:11, color:"#38bdf8", fontWeight:600 }}>{quickOpen ? "Cancel" : "📍 Quick Report — is this still accurate?"}</span>
+      </div>
+
+      {quickOpen && (
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginTop:8 }}>
+          {[
+            { key:"moderate", label:"🌊 Ankle", color:SEV_COLOR.moderate },
+            { key:"high",     label:"🚗 Knee",  color:SEV_COLOR.high },
+            { key:"severe",   label:"🚨 Blocked", color:SEV_COLOR.severe },
+          ].map(s=>(
+            <button key={s.key} disabled={sending} onClick={e=>quickSubmit(e,s.key)} style={{ padding:"8px 4px", borderRadius:8, border:`1px solid ${s.color}44`, background:s.color+"15", color:s.color, fontSize:11, fontWeight:600, fontFamily:"'Space Grotesk',sans-serif", cursor:"pointer" }}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div style={{ position:"absolute", bottom:0, left:0, height:2, width:`${area.score}%`, background:c, transition:"width 1s ease" }}/>
     </div>
   );
@@ -842,8 +889,18 @@ export default function App() {
     const userScore = ar.reduce((acc,r)=>acc+SEV_SCORE[r.severity]*15,0);
     const rainScore = Math.round(a.riskBase * rainFactor);
     const score = Math.min(100, rainScore + userScore);
-    return { ...a, reports:ar.length, score, status:statusFromScore(score) };
-  }).sort((a,b)=>b.score-a.score);
+    const lastReportAt = mostRecentTime(ar);
+    const hoursSinceReport = lastReportAt ? (Date.now() - new Date(lastReportAt)) / 3600000 : Infinity;
+    // If it's actively raining but no fresh report (< 3hrs) for this area, we don't know the real status
+    const isStale = hoursSinceReport > 3;
+    const isRaining = weather && weather.rain > 1;
+    const status = (isRaining && isStale) ? "unknown" : statusFromScore(score);
+    return { ...a, reports:ar.length, score, status, lastReportAt, hoursSinceReport };
+  }).sort((a,b) => {
+    // Sort: severe/high first, then unknowns during rain, then rest by score
+    const order = { severe:0, high:1, unknown:2, moderate:3, safe:4 };
+    return (order[a.status] ?? 5) - (order[b.status] ?? 5) || b.score - a.score;
+  });
 
   const alertLevel = computeAlertLevel(weather, areaData, trainReports, trafficReports);
   const severeCount = areaData.filter(a=>a.status==="severe").length;
@@ -893,6 +950,11 @@ export default function App() {
     if (tfr.data) setTrafficReports(tfr.data);
     const now = new Date();
     setLastUpdated(`${now.getHours().toString().padStart(2,"0")}:${now.getMinutes().toString().padStart(2,"0")} IST`);
+  }
+
+  async function handleQuickReport(areaName, severity) {
+    await supabase.from("flood_reports").insert({ area_name: areaName, severity, username });
+    await fetchReports();
   }
 
   const prevAlertRef = useRef(null);
@@ -996,7 +1058,12 @@ export default function App() {
           </div>
 
           <SectionLabel>Area Status — {areaData.length} zones</SectionLabel>
-          {areaData.map(a=><AreaCard key={a.name} area={a} onClick={()=>setModalArea(a)}/>)}
+          {weather && weather.rain > 1 && areaData.some(a=>a.status==="unknown") && (
+            <div style={{ background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)", borderRadius:10, padding:"10px 14px", marginBottom:10, fontSize:12, color:"#fbbf24", lineHeight:1.5 }}>
+              ⚪ Areas marked <strong>Unconfirmed</strong> have no recent reports — status unknown. Tap Quick Report if you're nearby.
+            </div>
+          )}
+          {areaData.map(a=><AreaCard key={a.name} area={a} onClick={()=>setModalArea(a)} onQuickReport={handleQuickReport} username={username}/>)}
           <div style={{ textAlign:"center", fontSize:11, color:"#4a5568", marginTop:16, fontFamily:"'Space Mono',monospace" }}>Last updated: {lastUpdated||"—"}</div>
         </>}
 
