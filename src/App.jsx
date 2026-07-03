@@ -280,29 +280,30 @@ function NotificationBell({ permission, subscribed, subscribe, unsubscribe }) {
 
 // ── Scrolling Ticker Banner ───────────────────────────────────────────────────
 function TickerBanner() {
-  const [message, setMessage] = useState("");
-  const [active, setActive]   = useState(false);
+  const [messages, setMessages] = useState([]);
 
   const fetchTicker = useCallback(async () => {
-    const { data } = await supabase.from("site_ticker").select("*").eq("id", 1).single();
-    if (data) {
-      setMessage(data.message);
-      setActive(data.active);
-    }
+    const { data } = await supabase
+      .from("site_ticker")
+      .select("*")
+      .eq("active", true)
+      .order("priority", { ascending: true });
+    if (data) setMessages(data.map(d => d.message));
   }, []);
 
   useEffect(() => {
     fetchTicker();
     const ch = supabase.channel("ticker_live")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "site_ticker" }, payload => {
-        setMessage(payload.new.message);
-        setActive(payload.new.active);
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_ticker" }, () => fetchTicker())
       .subscribe();
     return () => supabase.removeChannel(ch);
   }, [fetchTicker]);
 
-  if (!active || !message) return null;
+  if (messages.length === 0) return null;
+
+  const combined = messages.join("   •   ");
+  // Duration scales with text length so long combined messages don't scroll too fast
+  const duration = Math.max(18, combined.length * 0.13);
 
   return (
     <div style={{
@@ -314,11 +315,11 @@ function TickerBanner() {
       <div style={{
         display: "inline-block",
         paddingLeft: "100%",
-        animation: "ticker-scroll 22s linear infinite",
+        animation: `ticker-scroll ${duration}s linear infinite`,
         fontSize: 12.5, fontWeight: 600, color: "#38bdf8",
         fontFamily: "'Space Grotesk',sans-serif"
       }}>
-        {message}
+        {combined}
       </div>
     </div>
   );
@@ -920,6 +921,10 @@ export default function App() {
   const [modalArea, setModalArea] = useState(null);
   const [lastUpdated, setLastUpdated] = useState("");
   const [userArea, setUserArea]   = useState(() => localStorage.getItem("mr_area") || "");
+  const [userCoords, setUserCoords] = useState(() => {
+    const saved = localStorage.getItem("mr_coords");
+    return saved ? JSON.parse(saved) : null;
+  });
   const [detecting, setDetecting] = useState(false);
   const [username] = useState(()=>localStorage.getItem("mr_username")||(()=>{const n=randomName();localStorage.setItem("mr_username",n);return n;})());
   const { permission, subscribed, subscribe, unsubscribe } = usePushNotifications(username);
@@ -960,6 +965,10 @@ export default function App() {
     navigator.geolocation.getCurrentPosition(async pos => {
       try {
         const { latitude: lat, longitude: lon } = pos.coords;
+        const coords = { lat, lon };
+        setUserCoords(coords);
+        localStorage.setItem("mr_coords", JSON.stringify(coords));
+
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=16&addressdetails=1`, {
           headers: { "Accept-Language": "en" }
         });
@@ -970,14 +979,19 @@ export default function App() {
                    || addr.city || "Mumbai";
         setUserArea(name);
         localStorage.setItem("mr_area", name);
+        fetchWeather(coords); // refresh weather using precise coords immediately
       } catch { setUserArea("Mumbai"); }
       setDetecting(false);
     }, () => { setDetecting(false); }, { enableHighAccuracy: true, timeout: 10000 });
   }
 
-  async function fetchWeather() {
+  async function fetchWeather(coords) {
     try {
-      const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=Mumbai,IN&appid=${OWM_API_KEY}&units=metric`);
+      const useCoords = coords || userCoords;
+      const url = useCoords
+        ? `https://api.openweathermap.org/data/2.5/weather?lat=${useCoords.lat}&lon=${useCoords.lon}&appid=${OWM_API_KEY}&units=metric`
+        : `https://api.openweathermap.org/data/2.5/weather?q=Mumbai,IN&appid=${OWM_API_KEY}&units=metric`;
+      const res = await fetch(url);
       const d   = await res.json();
       const rain = d.rain?.["1h"] ?? d.rain?.["3h"] ?? 0;
       const icons = { Thunderstorm:"⛈️", Drizzle:"🌦️", Rain:"🌧️", Clouds:"☁️", Clear:"☀️", Mist:"🌫️", Fog:"🌫️" };
@@ -1038,7 +1052,7 @@ export default function App() {
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"traffic_reports"},()=>fetchReports())
       .subscribe();
     return () => { clearInterval(interval); supabase.removeChannel(ch); };
-  }, []);
+  }, [userCoords]);
 
   const rainIntensity = weather ? Math.min(1, weather.rain / 20) : 0;
 
