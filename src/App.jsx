@@ -902,10 +902,16 @@ function AboutTab() {
           </div>
         ))}
       </div>
-      <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20 }}>
+      <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20, marginBottom:12 }}>
         <div style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>For housing societies & businesses</div>
         <div style={{ fontSize:13, color:"#6b7f99", lineHeight:1.6, marginBottom:14 }}>Dedicated area dashboard + WhatsApp alerts for your pincode. Starting ₹199/month.</div>
-        <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:10, padding:12, fontSize:12, color:"#38bdf8", textAlign:"center", fontWeight:600 }}>📩 hello@mumbairainwatch.com</div>
+        <div style={{ background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", borderRadius:10, padding:12, fontSize:12, color:"#38bdf8", textAlign:"center", fontWeight:600 }}>📩 Please contact for any suggestions to eternalep35@gmail.com</div>
+      </div>
+      <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:16, padding:20 }}>
+        <div style={{ fontSize:14, fontWeight:600, marginBottom:10 }}>Privacy Policy</div>
+        <div style={{ fontSize:12, color:"#6b7f99", lineHeight:1.7 }}>
+          MumbaiRainWatch collects location data (only when you tap Detect) and crowd-submitted reports to provide flood, train and traffic alerts. We do not sell personal data to third parties. We use cookies and similar technologies, including Google AdSense, to serve relevant ads — Google may use cookies to personalise ads based on your visits to this and other sites. You can opt out of personalised advertising through Google Ads Settings. Reports submitted are anonymous unless you choose a display name. Location data is stored only in your browser (localStorage) and is not sent to our servers except when submitting a report tagged to an area. By using this site you consent to this policy. Contact eternalep35@gmail.com for any privacy concerns.
+        </div>
       </div>
     </div>
   );
