@@ -500,7 +500,7 @@ function SectionLabel({ children }) {
 function WeatherStrip({ weather }) {
   if (!weather) return <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:12, padding:"14px 16px", marginBottom:8, fontSize:12, color:"#6b7f99", textAlign:"center" }}>Loading weather…</div>;
   return (
-    <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:12, padding:"14px 16px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+    <div style={{ background:"#0d1526", border:"1px solid #1e2f4a", borderRadius:12, padding:"14px 16px", marginBottom:8, display:"flex", alignItems:"center", justifyContent:"space-between", position:"relative" }}>
       <div style={{ display:"flex", alignItems:"center", gap:12 }}>
         <div style={{ fontSize:30 }}>{weather.icon}</div>
         <div>
@@ -511,8 +511,11 @@ function WeatherStrip({ weather }) {
       <div style={{ textAlign:"right" }}>
         <div style={{ fontSize:12, color:"#6b7f99" }}>Humidity <strong style={{ color:"#e8edf5" }}>{weather.humidity}%</strong></div>
         <div style={{ fontSize:12, color:"#6b7f99" }}>Wind <strong style={{ color:"#e8edf5" }}>{weather.wind} km/h</strong></div>
-        <div style={{ fontSize:12, color:"#6b7f99" }}>Rain <strong style={{ color:"#38bdf8" }}>{weather.rain} mm/h</strong></div>
+        <div style={{ fontSize:12, color:"#6b7f99" }}>Rain <strong style={{ color:"#38bdf8" }}>{weather.rain} mm/h{weather.isEstimated ? "*" : ""}</strong></div>
       </div>
+      {weather.isEstimated && (
+        <div style={{ position:"absolute", bottom:2, right:8, fontSize:9, color:"#4a5568" }}>*estimated from conditions</div>
+      )}
     </div>
   );
 }
@@ -991,6 +994,22 @@ export default function App() {
     }, () => { setDetecting(false); }, { enableHighAccuracy: true, timeout: 10000 });
   }
 
+  // Estimate rain intensity (mm/h) from condition text when OWM's raw mm field is missing/zero.
+  // OWM's rain.1h field is frequently empty for Indian stations even during real heavy rain.
+  function estimateRainFromCondition(main, description) {
+    const desc = (description || "").toLowerCase();
+    if (main === "Thunderstorm") return desc.includes("light") ? 8 : desc.includes("heavy") ? 30 : 18;
+    if (main === "Rain") {
+      if (desc.includes("extreme") || desc.includes("very heavy")) return 35;
+      if (desc.includes("heavy")) return 22;
+      if (desc.includes("moderate")) return 10;
+      if (desc.includes("light")) return 3;
+      return 12; // generic "rain"
+    }
+    if (main === "Drizzle") return desc.includes("heavy") ? 4 : 1.5;
+    return 0;
+  }
+
   async function fetchWeather(coords) {
     try {
       const useCoords = coords || userCoords;
@@ -999,9 +1018,13 @@ export default function App() {
         : `https://api.openweathermap.org/data/2.5/weather?q=Mumbai,IN&appid=${OWM_API_KEY}&units=metric`;
       const res = await fetch(url);
       const d   = await res.json();
-      const rain = d.rain?.["1h"] ?? d.rain?.["3h"] ?? 0;
+      const main = d.weather[0].main;
+      const description = d.weather[0].description;
+      const rawRain = d.rain?.["1h"] ?? d.rain?.["3h"] ?? 0;
+      // If OWM didn't give us a real mm value but the condition says it's actively raining, estimate it
+      const rain = rawRain > 0 ? rawRain : estimateRainFromCondition(main, description);
       const icons = { Thunderstorm:"⛈️", Drizzle:"🌦️", Rain:"🌧️", Clouds:"☁️", Clear:"☀️", Mist:"🌫️", Fog:"🌫️" };
-      setWeather({ temp:Math.round(d.main.temp), desc:d.weather[0].description, humidity:d.main.humidity, wind:Math.round(d.wind.speed*3.6), rain:parseFloat(rain.toFixed(1)), icon:icons[d.weather[0].main]||"🌧️" });
+      setWeather({ temp:Math.round(d.main.temp), desc:description, humidity:d.main.humidity, wind:Math.round(d.wind.speed*3.6), rain:parseFloat(rain.toFixed(1)), icon:icons[main]||"🌧️", isEstimated: rawRain === 0 && rain > 0 });
     } catch {}
   }
 
